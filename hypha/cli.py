@@ -1,9 +1,9 @@
-"""M1 — typer CLI surface.
+"""Typer CLI surface.
 
-Role: the human's primary read/write view over the ledger until Telegram
-lands. Thin — every command is a one-liner over `Ledger`.
-Produces: `IntentCreated` (via `hypha intent "..."`).
-Consumes: ledger reads (`hypha events`, `hypha status`).
+Role: the human's primary read/write view over the ledger. Parity with the
+Telegram bridge (commands and semantics).
+Produces: `IntentCreated`, `DecisionRecorded`.
+Consumes: ledger reads.
 """
 
 from __future__ import annotations
@@ -28,6 +28,10 @@ def _ledger() -> Ledger:
     return Ledger(cfg.db_path)
 
 
+def _actor() -> str:
+    return f"cli:{getpass.getuser()}"
+
+
 @app.command()
 def intent(text: str) -> None:
     """Record a new intent in the ledger."""
@@ -36,8 +40,7 @@ def intent(text: str) -> None:
         ledger = _ledger()
         await ledger.init()
         payload = json.dumps({"text": text})
-        actor = f"cli:{getpass.getuser()}"
-        eid = await ledger.append(Kind.INTENT_CREATED, actor, payload)
+        eid = await ledger.append(Kind.INTENT_CREATED, _actor(), payload)
         typer.echo(f"{eid}")
 
     asyncio.run(_run())
@@ -54,7 +57,9 @@ def events(limit: int = 20, kind: str = "") -> None:
         now = time.time()
         for e in rows:
             age = now - e.ts
-            typer.echo(f"{e.ts:.0f} [{age:>5.0f}s] {e.kind:<18} {e.actor:<24} {e.payload}")
+            typer.echo(
+                f"{e.ts:.0f} [{age:>5.0f}s] {e.kind:<18} {e.actor:<24} {e.payload}"
+            )
 
     asyncio.run(_run())
 
@@ -69,6 +74,58 @@ def status() -> None:
         typer.echo(report)
 
     asyncio.run(_run())
+
+
+async def _decide(prefix: str, accepted: bool) -> None:
+    ledger = _ledger()
+    await ledger.init()
+    rows = await ledger.recent(kind=Kind.VERIFICATION_PASSED, limit=200)
+    match = next((r for r in rows if r.id.startswith(prefix)), None)
+    if match is None:
+        typer.echo(f"no VerificationPassed event matches prefix {prefix!r}")
+        raise typer.Exit(code=1)
+    payload = json.dumps({"accepted": accepted, "source": "cli"})
+    eid = await ledger.append(
+        Kind.DECISION_RECORDED, _actor(), payload, parent_id=match.id
+    )
+    typer.echo(
+        f"{eid}  -- {'accepted' if accepted else 'rejected'} {match.id[:8]}"
+    )
+
+
+@app.command()
+def accept(event_id_prefix: str) -> None:
+    """Accept a VerificationPassed event by id prefix (8 chars is enough)."""
+    asyncio.run(_decide(event_id_prefix, accepted=True))
+
+
+@app.command()
+def reject(event_id_prefix: str) -> None:
+    """Reject a VerificationPassed event by id prefix."""
+    asyncio.run(_decide(event_id_prefix, accepted=False))
+
+
+@app.command()
+def daemon() -> None:
+    """Run the supervisor daemon in the foreground."""
+    from hypha.daemon import run as _run
+
+    _run()
+
+
+@app.command()
+def telegram() -> None:
+    """Run the Telegram bridge in the foreground (requires bot token + chat id)."""
+    from hypha.telegram_bridge import run as _run
+
+    cfg = load_config()
+
+    async def _main() -> None:
+        ledger = Ledger(cfg.db_path)
+        await ledger.init()
+        await _run(cfg, ledger)
+
+    asyncio.run(_main())
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from hypha.agents._patch import PatchFormatError, apply_patch, parse_patch
 from hypha.events import Kind
 from hypha.ledger import Ledger
 from hypha.router import Request, Router
@@ -49,40 +50,6 @@ class LoopResult:
     branch: str
     worktree: Path
     verification_event_id: str
-
-
-class PatchFormatError(ValueError):
-    pass
-
-
-def _parse_patch(text: str) -> dict[str, str]:
-    try:
-        obj = json.loads(text)
-    except json.JSONDecodeError as e:
-        raise PatchFormatError(f"response is not valid JSON: {e}") from e
-    if not isinstance(obj, dict) or "files" not in obj or not isinstance(obj["files"], dict):
-        raise PatchFormatError('response must be {"files": {...}}')
-    files = obj["files"]
-    for k, v in files.items():
-        if not isinstance(k, str) or not isinstance(v, str):
-            raise PatchFormatError("each file entry must be str->str")
-        # No path traversal or absolute paths.
-        if k.startswith("/") or ".." in Path(k).parts:
-            raise PatchFormatError(f"unsafe path: {k}")
-    return files
-
-
-def _apply_patch(root: Path, files: dict[str, str]) -> list[str]:
-    written: list[str] = []
-    for rel, body in files.items():
-        dest = (root / rel).resolve()
-        # Belt & braces: confirm dest stays under root after resolution.
-        if not str(dest).startswith(str(root.resolve()) + "/") and dest != root.resolve():
-            raise PatchFormatError(f"patch escapes worktree: {rel}")
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(body)
-        written.append(rel)
-    return written
 
 
 class FusedAgent:
@@ -137,8 +104,8 @@ class FusedAgent:
         handle: WorktreeHandle = worktree_mgr.create()
 
         try:
-            files = _parse_patch(resp.text)
-            written = _apply_patch(handle.path, files)
+            files = parse_patch(resp.text)
+            written = apply_patch(handle.path, files)
             patch_id = await self.ledger.append(
                 Kind.PATCH_SUBMITTED,
                 "agent:fused",

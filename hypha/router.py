@@ -122,6 +122,12 @@ class Router:
         ) from last
 
 
+# `LiveRouter` is the concrete provider-driven router. `Router` stays as the
+# class the rest of the package constructs directly; the alias exists so
+# callers can signal intent when importing.
+LiveRouter = Router
+
+
 # ---- Concrete providers ------------------------------------------------------
 
 HTTPRequester = Callable[[str, dict, dict, float], Awaitable[tuple[int, dict]]]
