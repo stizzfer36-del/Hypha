@@ -1,0 +1,34 @@
+[project]
+name = "hypha"
+version = "0.0.1"
+description = "Persistent in-repo autonomous organism"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.20",
+    "python-dotenv>=1.0",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+telegram = ["python-telegram-bot>=21"]
+context = [
+    "py-tree-sitter>=0.22",
+    "pygit2>=1.15",
+    "duckdb>=1.0",
+    "sentence-transformers>=3.0",
+]
+bus = ["redis>=5.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "mypy>=1.10"]
+
+[project.scripts]
+hypha = "hypha.cli:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["hypha*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
