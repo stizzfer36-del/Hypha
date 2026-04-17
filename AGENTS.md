@@ -24,7 +24,7 @@ design choice honors this or is wrong.
 | M | Module(s) | Built? |
 |---|-----------|--------|
 | 1 | `ledger.py`, `daemon.py`, `cli.py`, `config.py`, `surface/status.py` | yes |
-| 2 | `context/ast_index.py`, `context/git_history.py`, `context/joint_query.py` | no |
+| 2 | `context/ast_index.py`, `context/git_history.py`, `context/joint_query.py` | yes |
 | 3 | `agents/fused.py`, `verify/pytest_runner.py`, `verify/typecheck.py`, `sandbox/worktree.py` | no |
 | 4 | `events.py`, `bus.py`, `router.py` | no |
 | 5 | `sandbox/firejail.py`, `surface/diff_approval.py`, `verify/behavioral_diff.py` | no |
