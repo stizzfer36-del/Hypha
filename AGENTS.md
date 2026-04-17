@@ -28,7 +28,7 @@ design choice honors this or is wrong.
 | 3 | `agents/fused.py`, `verify/pytest_runner.py`, `verify/typecheck.py`, `sandbox/worktree.py` | yes |
 | 4 | `events.py`, `bus.py`, `router.py` | yes |
 | 5 | `sandbox/firejail.py`, `surface/diff_approval.py`, `sandbox/hypha.profile` | yes |
-| 6 | `reflection/*` (canary is non-negotiable) | no |
+| 6 | `reflection/*` (canary is non-negotiable) | yes |
 | 7 | `devices/heartbeat.py`, `devices/claim.py` | no |
 | 8 | `context/runtime_traces.py`, `context/embeddings.py`, `context/joint_query.py` v2 | no |
 
